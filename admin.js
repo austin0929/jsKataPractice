@@ -1,48 +1,37 @@
-const orderListDom = document.querySelector(".orderList")
-const discardAllBtn = document.querySelector(".discardAllBtn")
+const orderListDom = document.querySelector(".orderList");
 
-const api_path = "david18";
-const token = "F3TyjVVLpwhRzLCuG4iXExmdCH93";
-
-
-let orderList = []
-
+//init
 const init = ()=>{
-    getOrderList()
-    renderC3()
-}
+    getOrderList();
+    // renderC3();
+};
 
 //getOrderList
-const getOrderList = ()=>{
+const getOrderList = (orderList)=>{
     axios.get(`https://livejs-api.hexschool.io/api/livejs/v1/admin/${api_path}/orders`,{
-        headers: {
+        headers : {
             "authorization" : token
         }
     }).then((res=>{
-        orderList = res.data.orders
-        let str =''
+        let str ='';
+        orderList =res.data.orders;
+        localStorage.setItem("orderData",JSON.stringify(orderList))
+
         orderList.forEach((item=>{
-
+  
             //orderStatus
-            let orderStatusStr = ''
-            if (item.paid == true) {
-                orderStatusStr = "已處理"
-            }
-            else{
-                orderStatusStr = "未處理"
-            }
+            let orderStatusStr = item.paid == true ? "已處理" : "未處理";
+            
+            //orderTime
+            const timeStamp = new Date(item.createdAt*1000);
+            let getTime = `${timeStamp.getFullYear()}/${timeStamp.getMonth()+1}/${timeStamp.getDate()}`;
 
-            //orderItem
-            let orderItemStr=''
-            item.products.forEach((productItem=>{
-                orderItemStr += `<p>${productItem.title}x${productItem.quantity}</p>`
+            //orderItemStr 
+            let orderItemStr = '';
+            item.products.forEach((orderItem=>{
+                orderItemStr += `<p>${orderItem.title}x${orderItem.quantity}</p>`
             }))
-
-            //timeStamp
-            const timeStamp = new Date(item.createdAt*1000)
-            let orderTime = `${timeStamp.getFullYear()}/${timeStamp.getMonth()+1}/${timeStamp.getDate()}`
-
-            //allStr
+            //allStr 
             str += `<tr>
                         <td>${item.id}</td>
                         <td>
@@ -54,122 +43,103 @@ const getOrderList = ()=>{
                         <td>
                             <p>${orderItemStr}</p>
                         </td>
-                        <td>${orderTime}</td>
+                        <td>${getTime}</td>
                         <td class="orderStatus">
-                            <a href="#" class="orderStatus" data-orderID="${item.id}" data-orderPaid="${item.paid}">${orderStatusStr}</a>
+                            <a href="#" class="orderStatus" data-orderId="${item.id}" data-orderPaid="${item.paid}">${orderStatusStr}</a>
                         </td>
                         <td>
-                            <input type="button" class="delSingleOrder-Btn" value="刪除" data-orderID="${item.id}">
+                            <input type="button" class="delSingleOrder-Btn" value="刪除"  data-orderId="${item.id}">
                         </td>
-                    </tr>`
-        }))
+                    </tr> `
+        }));
         orderListDom.innerHTML = str
         renderC3()
     }))
 }
 
-//deleteAllOrder
-discardAllBtn.addEventListener("click",e=>{
-    e.preventDefault()
-    if (e.target.getAttribute("class") == "discardAllBtn") {
-        axios.delete(`https://livejs-api.hexschool.io/api/livejs/v1/admin/${api_path}/orders`,{
-            headers: {
-                "authorization": token
-            }
-        }).then((res=>{
-            alert("訂單全部清除")
-            getOrderList()
-        })).catch((error=>{
-            alert("無訂單可清除")
-        }))
-    }
-})
-
-//orderListCheckEvent
+//orderStatus
 orderListDom.addEventListener("click",e=>{
     e.preventDefault()
-    const orderId = e.target.getAttribute("data-orderId")
-    const orderPaid = e.target.getAttribute("data-orderPaid")
-    if (e.target.getAttribute("class") == "orderStatus") {
-        orderStatusUpdate(orderId, orderPaid)
-        return
-    }
-    if (e.target.getAttribute("class") == "delSingleOrder-Btn") {
-        orderItemDelete(orderId)
-        return
-    }
+    let orderId = e.target.getAttribute("data-orderId")
+    let orderPaid = e.target.getAttribute("data-orderPaid")
+    let orderStatusTarget = e.target.getAttribute("class") == "orderStatus" ? orderStatusUpdate(orderId,orderPaid) : "";
+    let orderDeleteTarget = e.target.getAttribute("class") == "delSingleOrder-Btn" ? orderStatusDelete(orderId) : "";
 })
 
 //orderStatusUpdate
-const orderStatusUpdate = (orderId,orderPaid)=>{
-    let orderStatus = ''
-    if (orderPaid == true) {
-        orderStatus = false
-    }
-    else{
-        orderStatus = true
-    }
+const orderStatusUpdate =(orderId,orderPaid)=>{
+    let orderPaidStr = orderPaid == "true" ? false : true;
     axios.put(`https://livejs-api.hexschool.io/api/livejs/v1/admin/${api_path}/orders`,{
         "data": {
             "id": orderId,
-            "paid": orderStatus
+            "paid": orderPaidStr
         }
     },{
         headers: {
             "authorization": token
         }
-    }).then((res=>getOrderList()))
+    }).then((res=>{
+        console.log(res);
+        getOrderList()
+    })).catch((error=>{
+        console.log(error);
+    }))
 }
 
-//orderItemDelete
-const orderItemDelete = (orderId)=>{
+//orderStatusDelete
+const orderStatusDelete =(orderId)=>{
     axios.delete(`https://livejs-api.hexschool.io/api/livejs/v1/admin/${api_path}/orders/${orderId}`,{
         headers: {
             "authorization": token
         }
-    })
-    .then((res=>getOrderList()))
+    }).then((res=>getOrderList())).catch((error=>console.log(error)))
 }
 
 //renderC3
 const renderC3 =()=>{
-    let totalObj = {}
-    orderList.forEach((item=>{
-        item.products.forEach((productItem=>{
-            if (totalObj[productItem.title]== undefined) {
-                totalObj[productItem.title] = productItem.price * productItem.quantity
-                console.log(totalObj);
-            }
-        }))
-    }))
-    let C3Data = []
-    let orderNewAry = Object.keys(totalObj)
-    orderNewAry.forEach((item=>{
-        let ary = []
-        ary.push(item)
-        ary.push(totalObj[item])
-        C3Data.push(ary)
-    }))
-    
-    C3Data.sort((a,b)=>b[1]-a[1])
-
-    if (C3Data.length>3) {
-        let otherTotal = 0
-        C3Data.forEach((item,index)=>{
-            if (index>2) {
-                otherTotal = C3Data[index][1]
-                console.log(otherTotal);
+  let totalObj = {};
+    let getOrderLocal = JSON.parse(localStorage.getItem("orderData"));
+    getOrderLocal.forEach((item=>{
+        item.products.forEach((orderList)=>{
+            if (totalObj[orderList.title] == undefined) {
+                totalObj[orderList.title] = orderList.price * orderList.quantity;
+            }else{
+                totalObj[orderList.title] += orderList.price * orderList.quantity;
             }
         })
-        C3Data.splice(3,3);
-        C3Data.push(["其他",otherTotal])
-    }
+    }));
+    let newOrderList = [];
+    let newOrderAry = Object.keys(totalObj);
+    newOrderAry.forEach((item=>{
+        let ary = [];
+        ary.push(item);
+        ary.push(totalObj[item]);
+        newOrderList.push(ary);
+    }));
 
+     newOrderList.sort((a,b)=>b[1]-a[1])
+
+    if (newOrderList.length>3) {
+        let otherTotal = 0;
+        newOrderList.forEach((item,i)=>{
+            // if (i >2) {
+            //     // otherTotal = newOrderList[i][1];
+            // }
+           otherTotal = i > 2 ? newOrderList[i][1] : "";
+        })
+        newOrderList.splice(3,newOrderList.length-1);
+        newOrderList.push(["其他",otherTotal]);
+    }   
+    chartC3(newOrderList)
+}
+
+//C3Data
+const chartC3 = (newOrderList)=>{
     let chart = c3.generate({
         bindto: '#chart', // HTML 元素綁定
         data: {
             type: "pie",
-            columns: C3Data,
+            columns: newOrderList,
             colors: {
                 "Louvre 雙人床架": "#DACBFF",
                 "Antony 雙人床架": "#9D7FEA",
@@ -179,7 +149,6 @@ const renderC3 =()=>{
         },
     });
 }
-
 
 init()
 
