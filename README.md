@@ -1,1 +1,1 @@
-## JS直播班Kata練習
+## JSKata練習
